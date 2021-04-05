@@ -1,5 +1,5 @@
 -module(pollution_server).
--author("Filip").
+-author("filip").
 
 -export([start/0, stop/0, call/1]).
 

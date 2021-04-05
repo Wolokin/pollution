@@ -2,7 +2,7 @@
 %%% @author filip
 %%% @copyright (C) 2021, <COMPANY>
 %%% @doc
-%%%
+%%% Just some basic api tests, these are tests used in pollution_tests but using pollution_server api
 %%% @end
 %%% Created : 05. Apr 2021 12:49
 %%%-------------------------------------------------------------------
