@@ -1,7 +1,8 @@
 -module(pollution_server).
 -author("filip").
 
--export([start/0, stop/0, call/1, addStation/2, addValue/4, removeValue/3, getOneValue/3, getStationMean/2, getDailyMean/2, getDailyOverLimit/3, getClosestStation/1, changeStationName/2]).
+-export([start/0, stop/0, addStation/2, addValue/4, removeValue/3, getOneValue/3, getStationMean/2,
+  getDailyMean/2, getDailyOverLimit/3, getClosestStation/1, changeStationName/2]).
 
 start() ->
   erlang:register(pollutionServer, spawn(fun init/0)).
@@ -19,33 +20,36 @@ call(Message) ->
     {reply, Reply} -> Reply
   end.
 
+waitForCall(Monitor) ->
+  receive
+     {request, Pid, {addStation, {Name, Coords}}} ->
+       {ok, Pid, pollution:addStation(Name, Coords, Monitor)};
+     {request, Pid, {addValue, {Station, Datetime, MeasurementType, Value}}} ->
+       {ok, Pid, pollution:addValue(Station, Datetime, MeasurementType, Value, Monitor)};
+     {request, Pid, {removeValue, {Station, Datetime, MeasurementType}}} ->
+       {ok, Pid, pollution:removeValue(Station, Datetime, MeasurementType, Monitor)};
+     {request, Pid, {getOneValue, {Station, Datetime, MeasurementType}}} ->
+       {pollution:getOneValue(Station, Datetime, MeasurementType, Monitor), Pid, Monitor};
+     {request, Pid, {getStationMean, {Station, MeasurementType}}} ->
+       {pollution:getStationMean(Station, MeasurementType, Monitor), Pid, Monitor};
+     {request, Pid, {getDailyMean, {Date, MeasurementType}}} ->
+       {pollution:getDailyMean(Date, MeasurementType, Monitor), Pid, Monitor};
+     {request, Pid, {getDailyOverLimit, {Date, MeasurementType, Norm}}} ->
+       {pollution:getDailyOverLimit(Date, MeasurementType, Norm, Monitor), Pid, Monitor};
+     {request, Pid, {getClosestStation, {Coords}}} ->
+       {pollution:getClosestStation(Coords, Monitor), Pid, Monitor};
+     {request, Pid, {changeStationName, {OldName, NewName}}} ->
+       {ok, Pid, pollution:changeStationName(OldName, NewName, Monitor)};
+     {request, Pid, exit} ->
+       {exit, Pid}
+   end.
+
 loop(Monitor) ->
-  Result = receive
-    {request, Pid, {addStation, {Name, Coords}}} ->
-      {ok, Pid, pollution:addStation(Name, Coords, Monitor)};
-    {request, Pid, {addValue, {Station, Datetime, MeasurementType, Value}}} ->
-      {ok, Pid, pollution:addValue(Station, Datetime, MeasurementType, Value, Monitor)};
-    {request, Pid, {removeValue, {Station, Datetime, MeasurementType}}} ->
-      {ok, Pid, pollution:removeValue(Station, Datetime, MeasurementType, Monitor)};
-    {request, Pid, {getOneValue, {Station, Datetime, MeasurementType}}} ->
-      {pollution:getOneValue(Station, Datetime, MeasurementType, Monitor), Pid, Monitor};
-    {request, Pid, {getStationMean, {Station, MeasurementType}}} ->
-      {pollution:getStationMean(Station, MeasurementType, Monitor), Pid, Monitor};
-    {request, Pid, {getDailyMean, {Date, MeasurementType}}} ->
-      {pollution:getDailyMean(Date, MeasurementType, Monitor), Pid, Monitor};
-    {request, Pid, {getDailyOverLimit, {Date, MeasurementType, Norm}}} ->
-      {pollution:getDailyOverLimit(Date, MeasurementType, Norm, Monitor), Pid, Monitor};
-    {request, Pid, {getClosestStation, {Coords}}} ->
-      {pollution:getClosestStation(Coords, Monitor), Pid, Monitor};
-    {request, Pid, {changeStationName, {OldName, NewName}}} ->
-      {ok, Pid, pollution:changeStationName(OldName, NewName, Monitor)};
-    {request, Pid, exit} ->
-      {exit, Pid}
-  end,
+  Result = waitForCall(Monitor),
   case Result of
     {exit, Pid} -> Pid ! {reply, ok};
-    {Value, Pid, Monitor} -> Pid ! {reply, Value},
-      loop(Monitor)
+    {Value, Pid, NewMonitor} -> Pid ! {reply, Value},
+      loop(NewMonitor)
   end.
 
 % Dodaje nowa stacje pomiarowa
