@@ -47,8 +47,10 @@ waitForCall(Monitor) ->
 loop(Monitor) ->
   Result = waitForCall(Monitor),
   case Result of
-    {exit, Pid} -> Pid ! {reply, ok};
-    {Value, Pid, NewMonitor} -> Pid ! {reply, Value},
+    {exit, Pid} ->
+      Pid ! {reply, ok};
+    {Value, Pid, NewMonitor} ->
+      Pid ! {reply, Value},
       loop(NewMonitor)
   end.
 
