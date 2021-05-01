@@ -12,7 +12,6 @@
 server_name() -> ?MODULE.
 
 start() ->
-  io:format("start~n"),
   gen_statem:start_link({local, server_name()}, ?MODULE, [], []).
 stop() ->
   gen_statem:stop(server_name()).
@@ -35,7 +34,6 @@ storeData() ->
   gen_statem:cast(server_name(), store_data).
 
 initial_state(_Event, {set_station, StationNameOrCoords}, #{}) ->
-  io:format("oki~n"),
   {next_state, add_values, #{current_station => StationNameOrCoords,
                                 data => #{StationNameOrCoords => []}}}.
 

@@ -23,6 +23,7 @@ addValues_test() ->
   pollution_value_collector_gen_statem:addValue({{2021, 3, 22}, {16, 16, 47}}, "PM10", 0),
   pollution_value_collector_gen_statem:addValue({{2021, 3, 22}, {16, 16, 47}}, "PM2,5", 0),
   pollution_value_collector_gen_statem:storeData(),
+  timer:sleep(1000),
   ?assert(59 == pollution_gen_server:getOneValue("Aleja Slowackiego", {{2021, 3, 22}, {16, 16, 47}}, "PM10")),
   ?assert(113 == pollution_gen_server:getOneValue({50.2345, 18.3445}, {{2021, 3, 22}, {16, 16, 47}}, "PM2,5")),
   pollution_value_collector_gen_statem:stop(),
