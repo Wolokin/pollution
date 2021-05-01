@@ -33,7 +33,7 @@ getOneValue_test() ->
 removeValue_test() ->
   P = addValue_test(),
   P1 = pollution:removeValue("Aleja Slowackiego", {{2021,3,22},{16,16,47}}, "PM10", P),
-  ?assertError({badkey, _}, pollution:getOneValue("Aleja Slowackiego", {{2021,3,22},{16,16,47}}, "PM10", P1)).
+  ?assertMatch({error, measurement_not_found}, pollution:getOneValue("Aleja Slowackiego", {{2021,3,22},{16,16,47}}, "PM10", P1)).
 
 getStationMean_test() ->
   P = addValue_test(),

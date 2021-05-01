@@ -6,11 +6,24 @@
 
 % Funkcja pomocnicza, zwraca dane stacji jako klucz przyjmujac nazwe badz wspolrzedne stacji
 getStationData(Coords, Monitor) when erlang:is_tuple(Coords) ->
-  #monitor{coordsToName = #{Coords := Name}} = Monitor,
-  getStationData(Name, Monitor);
+  #monitor{coordsToName = CoordsToName} = Monitor,
+  case maps:is_key(Coords, CoordsToName) of
+    true -> #{Coords := Name} = CoordsToName,
+      getStationData(Name, Monitor);
+    false -> {error, no_station_found}
+  end;
 getStationData(Name, Monitor) ->
-  #monitor{nameToData = #{Name := Data}} = Monitor,
-  {Name, Data}.
+  #monitor{nameToData = NameToData} = Monitor,
+  case maps:is_key(Name, NameToData) of
+    true -> #{Name := Data} = NameToData,
+      {Name, Data};
+    false -> {error, no_station_found}
+  end.
+checkForErrors(StationData, Action) ->
+  case StationData of
+    {error, _} -> StationData;
+    _ -> Action()
+  end.
 
 % Funkcja pomocnicza, wstawia zauktualizowane dane pomiarowe pojedynczej stacji do monitora
 putStationData(Name, Data, #monitor{nameToData = OldData} = Monitor) ->
@@ -42,27 +55,42 @@ addStation(Name, Coords, #monitor{coordsToName = C, nameToData = N}) ->
 addValue(Station, Datetime, MeasurementType, Value, Monitor) ->
   {Name, Data} = getStationData(Station, Monitor),
   Key = {Datetime, MeasurementType},
-  case maps:is_key(Key, Data) of
-    false -> putStationData(Name, Data#{Key => Value}, Monitor);
-    _ -> {error, duplicate_measurement}
-  end.
+  checkForErrors({Name, Data},
+    fun() -> case maps:is_key(Key, Data) of
+                false -> putStationData(Name, Data#{Key => Value}, Monitor);
+                _ -> {error, duplicate_measurement}
+             end
+    end).
+
 
 % Usuwa pojedynczy pomiar z podanej stacji, daty i typu
 removeValue(Station, Datetime, MeasurementType, Monitor) ->
   {Name, Data} = getStationData(Station, Monitor),
   Key = {Datetime, MeasurementType},
-  putStationData(Name, maps:remove(Key, Data), Monitor).
+  case {Name, maps:is_key(Key, Data)} of
+    {error, _} -> {Name, Data};
+    {_, false} -> {error, measurement_not_found};
+    _ -> putStationData(Name, maps:remove(Key, Data), Monitor)
+  end.
 
 % Zwraca wartosc pojedynczego pomiaru z podanej stacji, daty i typu
 getOneValue(Station, Datetime, MeasurementType, Monitor) ->
-  {_, Data} = getStationData(Station, Monitor),
+  {Name, Data} = getStationData(Station, Monitor),
   Key = {Datetime, MeasurementType},
-  maps:get(Key, Data).
+  checkForErrors({Name, Data},
+    fun() ->
+      maps:get(Key, Data, {error, measurement_not_found})
+    end).
 
 % Zwraca srednia wartosc pomiaru danego typu dla danej stacji
 getStationMean(Station, MeasurementType, Monitor) ->
-  {_, Data} = getStationData(Station, Monitor),
-  listAvg(maps:values(maps:filter(fun({_, M},_) -> M == MeasurementType end, Data))).
+  {Name, Data} = getStationData(Station, Monitor),
+  checkForErrors({Name, Data},
+    fun() ->
+    listAvg(
+      maps:values(
+        maps:filter(fun({_, M},_) -> M == MeasurementType end, Data)))
+    end).
 
 % Funkcja pomocnicza - zwraca nameToData w ktorym wystepuja tylko dane spelniajace Func
 % Func musi dzialac na mapie {Date, MeasurementType} -> Value
@@ -105,9 +133,13 @@ getClosestStation(Coords, #monitor{coordsToName = C}) ->
 % Zmienia nazwe stacji
 changeStationName(OldName, NewName, #monitor{coordsToName = C, nameToData = N} = Monitor) ->
   List = maps:to_list(C),
-  {Coords, _} = lists:keyfind(OldName, 2, List),
-  C2 = C#{Coords := NewName},
-  {_, Data} = getStationData(OldName, Monitor),
-  N2 = maps:remove(OldName, N),
-  M2 = #monitor{coordsToName = C2, nameToData = N2},
-  putStationData(NewName, Data, M2).
+  Found = lists:keyfind(OldName, 2, List),
+  case Found of
+    false -> {error, invalid_name};
+    _ -> {Coords, _} = Found,
+      C2 = C#{Coords := NewName},
+      {_, Data} = getStationData(OldName, Monitor),
+      N2 = maps:remove(OldName, N),
+      M2 = #monitor{coordsToName = C2, nameToData = N2},
+      putStationData(NewName, Data, M2)
+  end.
