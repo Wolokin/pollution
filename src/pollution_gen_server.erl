@@ -45,18 +45,18 @@ getClosestStation(Coords) ->
 changeStationName(OldName, NewName) ->
   gen_server:call(pollution_gen_server, {changeStationName, {OldName, NewName}}).
 
-handle_errors(NewMonitor, Monitor) ->
+check_for_bad_modification(NewMonitor, Monitor) ->
   case NewMonitor of
     {error, _} = Error -> {reply, Error, Monitor};
     _ -> {reply, ok, NewMonitor}
   end.
 
 handle_call({addStation, {Name, Coords}}, _, Monitor) ->
-  handle_errors(pollution:addStation(Name, Coords, Monitor), Monitor);
+  check_for_bad_modification(pollution:addStation(Name, Coords, Monitor), Monitor);
 handle_call({addValue, {Station, Datetime, MeasurementType, Value}}, _, Monitor) ->
-  handle_errors(pollution:addValue(Station, Datetime, MeasurementType, Value, Monitor), Monitor);
+  check_for_bad_modification(pollution:addValue(Station, Datetime, MeasurementType, Value, Monitor), Monitor);
 handle_call({removeValue, {Station, Datetime, MeasurementType}}, _, Monitor) ->
-  handle_errors(pollution:removeValue(Station, Datetime, MeasurementType, Monitor), Monitor);
+  check_for_bad_modification(pollution:removeValue(Station, Datetime, MeasurementType, Monitor), Monitor);
 handle_call({getOneValue, {Station, Datetime, MeasurementType}}, _, Monitor) ->
   {reply, pollution:getOneValue(Station, Datetime, MeasurementType, Monitor), Monitor};
 handle_call({getStationMean, {Station, MeasurementType}}, _, Monitor) ->
@@ -68,7 +68,7 @@ handle_call({getDailyOverLimit, {Date, MeasurementType, Norm}}, _, Monitor) ->
 handle_call({getClosestStation, {Coords}}, _, Monitor) ->
   {reply, pollution:getClosestStation(Coords,Monitor), Monitor};
 handle_call({changeStationName, {OldName, NewName}}, _, Monitor) ->
-  handle_errors(pollution:changeStationName(OldName,NewName, Monitor), Monitor).
+  check_for_bad_modification(pollution:changeStationName(OldName,NewName, Monitor), Monitor).
 
 handle_cast({stop}, Monitor) ->
   {stop, normal, Monitor};
